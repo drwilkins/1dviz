@@ -27,18 +27,22 @@ ui <- fluidPage(
       
       # Show a plot of the generated distribution
       mainPanel(
-         plotOutput("G"),
-        tags$div(
-          tags$br(),
-          tags$h4("First 6 lines of the dataset")),
-        tableOutput("view")
-      )
+        fluidPage( fluidRow(
+        plotOutput("G")),
+        fluidRow(
+          #div(id='mydiv',class='simpleDiv',tags$br(),
+          #tags$h4("First 6 lines of the dataset") ),#end div,
+        tableOutput("view")#,
+        )
+      )#end fluidPage
+      )#end mainPanel
    )
 )
 
 # Define server logic required to draw a histogram
 server <- function(input, output,session) {
-   
+  
+  
   DFinput<-reactive({
     switch(input$df,"mtcars"=mtcars,"iris"=iris,"ToothGrowth"=ToothGrowth)
   })
@@ -49,20 +53,22 @@ server <- function(input, output,session) {
     
     output$stats<-renderTable({
       values<-eval(parse(text=paste0("DFinput()$",input$vrbl)))
-      meanx<-mean(values)
-      medianx<-median(values)
+      print(input$vrbl)
+      meanx<-mean(values,na.rm=T)
+      medianx<-median(values,na.rm=T)
 
         Mode <- function(x) {
             ux <- unique(x)
             ux[which.max(tabulate(match(x, ux)))]
           }
       modex<-Mode(values)
-      madx<-mean(abs(values-meanx))
+      madx<-mean(abs(values-meanx),na.rm=T)
       stats<-data.frame(Stat=c("Mean","Median","Mode","Mean Abs Dev"),Value=c(meanx,medianx,modex,madx))
       return(stats)
 
     })
   
+### Define main plot
    output$G <- renderPlot({
       # generate bins based on input$bins from ui.R
      DF<-DFinput()
@@ -71,9 +77,12 @@ server <- function(input, output,session) {
      
      grafs<-list()
      
+     #Dot Plot
      if("dot"%in%input$plottype)
         {
-        grafs$dot<-g0+geom_dotplot(data=DF,aes_string(x=input$vrbl),dotsize=.8)+theme(axis.text.y=element_blank())
+        tmp<-g0+geom_dotplot(data=DF,aes_string(x=input$vrbl),dotsize=.8)+theme(axis.text.y=element_blank())
+        yrange<-ggplot_build(tmp)$layout$panel_params[[1]]$y.range
+        grafs$dot<-tmp+ylim(yrange)
         }
      
      # if(input$plottype=="bar")
@@ -81,11 +90,13 @@ server <- function(input, output,session) {
      #    G<-g0+geom_bar(data=DF,aes_string(x=input$vrbl))
      #    }
      
+     #Boxplot
      if("box"%in% input$plottype)
         {
         grafs$box<-g0+geom_boxplot(data=DF,aes_string(x=1,y=input$vrbl))+coord_flip()+theme(axis.text.y=element_blank(),axis.title.y=element_blank())
         }
      
+     #Histogram
      if("hist" %in% input$plottype)
         {
         grafs$hist<-g0+geom_histogram(data=DF,aes_string(x=input$vrbl))
@@ -93,10 +104,17 @@ server <- function(input, output,session) {
      
      if(is.null(input$plottype)){
        ggplot()+annotate("text",x=-1,y=1,label="Choose a plot type",size=12)+theme_nothing()
-     }else{ plot_grid(plotlist=grafs,align="v",cols=1) }
+     }else{ plot_grid(plotlist=grafs,align="v",ncol=1)#+coord_fixed(ratio=4/3) 
+       }
      
-   })
-}
+   },height=200+100*length(grafs),width="auto")#end renderPlot
+   
+   # #make outputplot scale the height based on # of graphs
+   # output$dynamicheight<-renderUI({
+   #   plotOutput("G",height=200+200*output$plotheight)})
+   
+   
+}#end serverside
 
 # Run the application 
 shinyApp(ui = ui, server = server)
