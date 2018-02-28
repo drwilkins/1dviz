@@ -28,10 +28,10 @@ ui <- fluidPage(
       # Show a plot of the generated distribution
       mainPanel(
         fluidPage( fluidRow(
-        plotOutput("G")),
+        uiOutput("resizeG")),
         fluidRow(
-          #div(id='mydiv',class='simpleDiv',tags$br(),
-          #tags$h4("First 6 lines of the dataset") ),#end div,
+          div(id='mydiv',class='simpleDiv',tags$br(),
+          tags$h4("First 6 lines of the dataset") ),#end div,
         tableOutput("view")#,
         )
       )#end fluidPage
@@ -66,13 +66,21 @@ server <- function(input, output,session) {
       stats<-data.frame(Stat=c("Mean","Median","Mode","Mean Abs Dev"),Value=c(meanx,medianx,modex,madx))
       return(stats)
 
-    })
-  
+    })#End Stats
+
+#------------------------
+#Reactive value that will connect graph (G) & formatted graph (resizeG)  
+Ngrafs<-reactiveValues()
+observe(Ngrafs$x<-length(input$plottype))
+#observe(print(paste0("N=",Ngrafs$x)))
+#------------------------    
+    
 ### Define main plot
    output$G <- renderPlot({
       # generate bins based on input$bins from ui.R
      DF<-DFinput()
-     #basic graph template
+     
+      #basic graph template
      g0<-ggplot()+theme_bw()+theme(axis.text=element_text(size=14),axis.title=element_text(face="bold",size=18))
      
      grafs<-list()
@@ -104,15 +112,23 @@ server <- function(input, output,session) {
      
      if(is.null(input$plottype)){
        ggplot()+annotate("text",x=-1,y=1,label="Choose a plot type",size=12)+theme_nothing()
-     }else{ plot_grid(plotlist=grafs,align="v",ncol=1)#+coord_fixed(ratio=4/3) 
-       }
+     }else{
+       #print(paste0("N.grafs=",isolate(N.grafs)))
+       plot_grid(plotlist=grafs,align="v",ncol=1)#+coord_fixed(ratio=4/3) 
+          }
      
-   },height=200+100*length(grafs),width="auto")#end renderPlot
+   })#end renderPlot
    
    # #make outputplot scale the height based on # of graphs
    # output$dynamicheight<-renderUI({
    #   plotOutput("G",height=200+200*output$plotheight)})
-   
+reactive(print(paste0("x=",N.grafs$x)))
+    
+output$resizeG<-renderUI({
+  #print(paste0("N.grafs=",isolate(N.grafs)))
+  x<-plotOutput("G",height=200+200*Ngrafs$x,width="auto")
+  return(x)
+})
    
 }#end serverside
 
